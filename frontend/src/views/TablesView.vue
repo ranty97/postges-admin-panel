@@ -1,8 +1,13 @@
 <template>
   <div>
+    <div class="banner">
+      <h1>Управление базой данных</h1>
+      <p>Создавайте, просматривайте и редактируйте таблицы</p>
+    </div>
+
     <el-row :gutter="20" class="mb-4">
       <el-col :span="24">
-        <el-button type="primary" @click="showCreateTableDialog = true">
+        <el-button type="primary" @click="createTableDialogVisible = true">
           Создать таблицу
         </el-button>
       </el-col>
@@ -24,38 +29,76 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="showCreateTableDialog" title="Создание таблицы">
-      <el-form :model="newTable" label-width="120px">
-        <el-form-item label="Название таблицы">
-          <el-input v-model="newTable.name" />
+    <el-dialog
+      v-model="createTableDialogVisible"
+      title="Создание новой таблицы"
+      width="600px"
+      :close-on-click-modal="false"
+      class="create-table-dialog"
+    >
+      <el-form :model="newTable" label-position="top">
+        <el-form-item label="Название таблицы" required>
+          <el-input v-model="newTable.name" placeholder="Введите название таблицы" />
         </el-form-item>
-        <el-form-item label="Поля">
-          <div v-for="(field, index) in newTable.fields" :key="index" class="field-item">
-            <el-input v-model="field.name" placeholder="Имя поля" style="width: 200px" />
-            <el-select v-model="field.type" placeholder="Тип" style="width: 150px">
-              <el-option label="VARCHAR(255)" value="VARCHAR(255)" />
-              <el-option label="INTEGER" value="INTEGER" />
-              <el-option label="BOOLEAN" value="BOOLEAN" />
-              <el-option label="DATE" value="DATE" />
-              <el-option label="NUMERIC" value="NUMERIC" />
-            </el-select>
-            <el-button type="danger" @click="removeField(index)">Удалить</el-button>
+        
+        <div class="fields-section">
+          <div class="fields-header">
+            <h3>Поля таблицы</h3>
+            <el-button type="primary" @click="addField" size="small">
+              <el-icon><Plus /></el-icon>
+              Добавить поле
+            </el-button>
           </div>
-          <el-button type="primary" @click="addField">Добавить поле</el-button>
-        </el-form-item>
+          
+          <div class="fields-list">
+            <div v-for="(field, index) in newTable.fields" :key="index" class="field-item">
+              <el-input
+                v-model="field.name"
+                placeholder="Название поля"
+                style="width: 200px"
+              />
+              <el-select
+                v-model="field.type"
+                placeholder="Тип поля"
+                style="width: 150px"
+              >
+                <el-option label="VARCHAR(255)" value="VARCHAR(255)" />
+                <el-option label="INTEGER" value="INTEGER" />
+                <el-option label="BOOLEAN" value="BOOLEAN" />
+                <el-option label="DATE" value="DATE" />
+                <el-option label="NUMERIC" value="NUMERIC" />
+              </el-select>
+              <el-button
+                type="danger"
+                @click="removeField(index)"
+                :icon="Delete"
+                circle
+              />
+            </div>
+          </div>
+        </div>
       </el-form>
+      
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="showCreateTableDialog = false">Отмена</el-button>
-          <el-button type="primary" @click="createTable">Создать</el-button>
+          <el-button @click="createTableDialogVisible = false">Отмена</el-button>
+          <el-button type="primary" @click="createTable" :disabled="!isValidTable">
+            Создать таблицу
+          </el-button>
         </span>
       </template>
     </el-dialog>
 
     <el-dialog v-model="showTableDataDialog" title="Данные таблицы" width="80%">
-      <el-button type="primary" @click="addNewRow" class="mb-4">
-        Добавить запись
-      </el-button>
+      <div class="table-actions">
+        <el-button type="primary" @click="addNewRow" class="mb-4">
+          Добавить запись
+        </el-button>
+        <el-button type="success" @click="exportToExcel" class="mb-4">
+          <el-icon><Download /></el-icon>
+          Экспорт в Excel
+        </el-button>
+      </div>
       <el-table :data="tableData" style="width: 100%">
         <el-table-column
           v-for="column in tableColumns"
@@ -65,10 +108,32 @@
         >
           <template #default="scope">
             <el-input
-              v-if="scope.row.isEditing"
+              v-if="scope.row.isEditing && columnTypes[column] !== 'boolean' && columnTypes[column] !== 'date'"
               v-model="scope.row[column]"
             />
-            <span v-else @dblclick="startEditing(scope.row)">{{ scope.row[column] }}</span>
+            <el-select
+              v-else-if="scope.row.isEditing && columnTypes[column] === 'boolean'"
+              v-model="scope.row[column]"
+              style="width: 100%"
+            >
+              <el-option :value="true" label="Да" />
+              <el-option :value="false" label="Нет" />
+            </el-select>
+            <el-date-picker
+              v-else-if="scope.row.isEditing && columnTypes[column] === 'date'"
+              v-model="scope.row[column]"
+              type="date"
+              placeholder="Выберите дату"
+              style="width: 100%"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              :clearable="true"
+              :editable="false"
+              @change="(val) => console.log('Date changed:', val, 'Column:', column, 'Type:', columnTypes[column])"
+            />
+            <span v-else @dblclick="startEditing(scope.row, column)">
+              {{ columnTypes[column] === 'boolean' ? (scope.row[column] ? 'Да' : 'Нет') : scope.row[column] }}
+            </span>
           </template>
         </el-table-column>
         <el-table-column label="Действия" width="200">
@@ -104,19 +169,33 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElDatePicker } from 'element-plus'
+import { Plus, Delete, Download } from '@element-plus/icons-vue'
+import * as XLSX from 'xlsx'
+import { onBeforeRouteUpdate, useRoute } from 'vue-router'
 
 const tables = ref([])
 const loading = ref(false)
-const showCreateTableDialog = ref(false)
 const showTableDataDialog = ref(false)
 const tableData = ref([])
 const tableColumns = ref([])
 const newTable = ref({
   name: '',
   fields: []
+})
+const columnTypes = ref({})
+const createTableDialogVisible = ref(false)
+
+const route = useRoute()
+
+// Добавляем вычисляемое свойство для проверки валидности таблицы
+const isValidTable = computed(() => {
+  return newTable.value.name && 
+         newTable.value.fields.length > 0 && 
+         newTable.value.fields.every(field => field.name && field.type)
 })
 
 const fetchTables = async () => {
@@ -134,12 +213,8 @@ const fetchTables = async () => {
 }
 
 const createTable = async () => {
-  if (!newTable.value.name) {
-    ElMessage.warning('Введите название таблицы')
-    return
-  }
-  if (newTable.value.fields.length === 0) {
-    ElMessage.warning('Добавьте хотя бы одно поле')
+  if (!isValidTable.value) {
+    ElMessage.warning('Заполните все поля корректно')
     return
   }
 
@@ -150,7 +225,7 @@ const createTable = async () => {
     console.log('Creating table with query:', query)
     await axios.post('/api/execute', { query })
     ElMessage.success('Таблица успешно создана')
-    showCreateTableDialog.value = false
+    createTableDialogVisible.value = false
     newTable.value = { name: '', fields: [] }
     fetchTables()
   } catch (error) {
@@ -208,7 +283,7 @@ const viewTable = async (table) => {
   currentTable.value = table.name
   try {
     // Сначала получаем данные таблицы
-    const query = `SELECT * FROM ${table.name}`
+    const query = `SELECT * FROM ${table.name} ORDER BY id`
     const response = await axios.post('/api/execute', { query })
     
     if (response.data.result) {
@@ -224,28 +299,41 @@ const viewTable = async (table) => {
         const typesResponse = await axios.post('/api/execute', { query: typesQuery })
         const typesData = JSON.parse(typesResponse.data.result)
         
-        const columnTypes = {}
+        columnTypes.value = {}
         typesData.forEach(col => {
-          columnTypes[col.column_name] = col.data_type
+          columnTypes.value[col.column_name] = col.data_type
         })
         
         // Преобразуем значения
         tableData.value = data.map(row => {
           const newRow = { ...row, isEditing: false }
           Object.keys(newRow).forEach(key => {
-            // Декодируем все поля, которые могут быть закодированы в base64
-            if (newRow[key] !== null) {
-              newRow[key] = decodeBase64(newRow[key])
+            // Декодируем только числовые поля
+            if (newRow[key] !== null && 
+                (columnTypes.value[key] === 'integer' || 
+                 columnTypes.value[key] === 'bigint' || 
+                 columnTypes.value[key] === 'smallint' || 
+                 columnTypes.value[key] === 'numeric')) {
+              try {
+                newRow[key] = decodeBase64(newRow[key])
+              } catch (e) {
+                console.log('Error decoding value:', e)
+                // Если не удалось декодировать, оставляем как есть
+              }
             }
           })
           return newRow
         })
       } else {
         // Если таблица пуста, получаем структуру из information_schema
-        const columnsQuery = `SELECT column_name FROM information_schema.columns WHERE table_name = '${table.name}' ORDER BY ordinal_position`
+        const columnsQuery = `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${table.name}' ORDER BY ordinal_position`
         const columnsResponse = await axios.post('/api/execute', { query: columnsQuery })
         const columnsData = JSON.parse(columnsResponse.data.result)
-        tableColumns.value = columnsData.map(col => decodeBase64(col.column_name))
+        tableColumns.value = columnsData.map(col => col.column_name)
+        columnTypes.value = {}
+        columnsData.forEach(col => {
+          columnTypes.value[col.column_name] = col.data_type
+        })
         tableData.value = []
         
         // Показываем сообщение с предложением добавить запись
@@ -265,10 +353,14 @@ const viewTable = async (table) => {
       }
     } else {
       // Если таблица пуста, получаем структуру из information_schema
-      const columnsQuery = `SELECT column_name FROM information_schema.columns WHERE table_name = '${table.name}' ORDER BY ordinal_position`
+      const columnsQuery = `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${table.name}' ORDER BY ordinal_position`
       const columnsResponse = await axios.post('/api/execute', { query: columnsQuery })
       const columnsData = JSON.parse(columnsResponse.data.result)
-      tableColumns.value = columnsData.map(col => decodeBase64(col.column_name))
+      tableColumns.value = columnsData.map(col => col.column_name)
+      columnTypes.value = {}
+      columnsData.forEach(col => {
+        columnTypes.value[col.column_name] = col.data_type
+      })
       tableData.value = []
       
       // Показываем сообщение с предложением добавить запись
@@ -302,7 +394,21 @@ const removeField = (index) => {
   newTable.value.fields.splice(index, 1)
 }
 
-const startEditing = (row) => {
+const startEditing = (row, column) => {
+  console.log('Start editing:', column, 'Type:', columnTypes.value[column], 'Value:', row[column])
+  // Проверяем тип колонки
+  if (columnTypes.value[column] === 'date') {
+    console.log('Date field detected, current value:', row[column])
+    // Если это дата, преобразуем значение в формат YYYY-MM-DD
+    if (row[column]) {
+      const date = new Date(row[column])
+      console.log('Parsed date:', date)
+      if (!isNaN(date)) {
+        row[column] = date.toISOString().split('T')[0]
+        console.log('Formatted date:', row[column])
+      }
+    }
+  }
   row.isEditing = true
 }
 
@@ -401,6 +507,8 @@ const saveRow = async (row) => {
             insertValues.push(value)
           } else if (colType.type === 'boolean') {
             insertValues.push(value ? 'true' : 'false')
+          } else if (colType.type === 'date') {
+            insertValues.push(`'${value}'`)
           } else {
             insertValues.push(`'${value}'`)
           }
@@ -438,6 +546,8 @@ const saveRow = async (row) => {
               updateFields.push(`${col} = ${value}`)
             } else if (colType.type === 'boolean') {
               updateFields.push(`${col} = ${value ? 'true' : 'false'}`)
+            } else if (colType.type === 'date') {
+              updateFields.push(`${col} = '${value}'`)
             } else {
               updateFields.push(`${col} = '${value}'`)
             }
@@ -466,6 +576,8 @@ const saveRow = async (row) => {
               insertValues.push(value)
             } else if (colType.type === 'boolean') {
               insertValues.push(value ? 'true' : 'false')
+            } else if (colType.type === 'date') {
+              insertValues.push(`'${value}'`)
             } else {
               insertValues.push(`'${value}'`)
             }
@@ -545,18 +657,147 @@ const cancelEditing = (row) => {
   }
 }
 
+const exportToExcel = () => {
+  try {
+    // Создаем массив данных для экспорта
+    const exportData = tableData.value.map(row => {
+      const newRow = {}
+      tableColumns.value.forEach(column => {
+        // Преобразуем значения в читаемый формат
+        if (columnTypes.value[column] === 'boolean') {
+          newRow[column] = row[column] ? 'Да' : 'Нет'
+        } else {
+          newRow[column] = row[column]
+        }
+      })
+      return newRow
+    })
+
+    // Создаем рабочую книгу
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(exportData)
+
+    // Добавляем лист в книгу
+    XLSX.utils.book_append_sheet(wb, ws, currentTable.value)
+
+    // Генерируем файл
+    const fileName = `${currentTable.value}_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+
+    ElMessage.success('Таблица успешно экспортирована в Excel')
+  } catch (error) {
+    console.error('Error exporting to Excel:', error)
+    ElMessage.error('Ошибка при экспорте в Excel: ' + error.message)
+  }
+}
+
 const currentTable = ref('')
 
 onMounted(() => {
+  console.log('TablesView mounted, path:', route.path)
   fetchTables()
+})
+
+// Добавляем обработчик изменения маршрута
+onBeforeRouteUpdate((to, from, next) => {
+  console.log('TablesView route update:', { 
+    to: to.path, 
+    from: from.path,
+    currentPath: route.path
+  })
+  fetchTables()
+  next()
 })
 </script>
 
 <style scoped>
+.banner {
+  background: linear-gradient(135deg, #409EFF 0%, #36cfc9 100%);
+  color: white;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.banner h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.banner p {
+  margin: 0.5rem 0 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
 .field-item {
   margin-bottom: 10px;
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+.create-table-dialog {
+  .el-dialog__body {
+    padding: 20px;
+  }
+  
+  .fields-section {
+    margin-top: 20px;
+    border: 1px solid #e6e6e6;
+    border-radius: 8px;
+    padding: 15px;
+    background-color: #f9f9f9;
+  }
+  
+  .fields-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    
+    h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #303133;
+    }
+  }
+  
+  .fields-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .field-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background-color: white;
+    border-radius: 4px;
+    border: 1px solid #dcdfe6;
+    transition: all 0.3s;
+    
+    &:hover {
+      border-color: #409EFF;
+      box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+    }
+  }
+  
+  .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+}
+
+.table-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 </style> 
