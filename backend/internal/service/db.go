@@ -2,36 +2,33 @@ package service
 
 import (
 	"fmt"
-
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 )
 
-type DBService struct {
-	db *sqlx.DB
+type Repository interface {
+	Tables() ([]string, error)
+	ExecuteQuery(query string) (string, error)
 }
 
-func NewDBService(db *sqlx.DB) *DBService {
-	return &DBService{db: db}
+type Service struct {
+	repo Repository
 }
 
-func (s *DBService) Tables() ([]string, error) {
-	var tables []string
-	err := s.db.Select(&tables, "SELECT table_name FROM information_schema.tables WHERE table_schema='public'")
+func NewDBService(repo Repository) *Service {
+	return &Service{repo: repo}
+}
+
+func (s *Service) Tables() ([]string, error) {
+	tables, err := s.repo.Tables()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("repo: %w", err)
 	}
 	return tables, nil
 }
 
-func (s *DBService) ExecuteQuery(query string) (string, error) {
-	result, err := s.db.Exec(query)
+func (s *Service) ExecuteQuery(query string) (string, error) {
+	result, err := s.repo.ExecuteQuery(query)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("repo: %w", err)
 	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("Query executed successfully. %d rows affected.", rows), nil
+	return result, nil
 }
