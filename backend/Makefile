@@ -1,2 +1,2 @@
 run: 
-	go run ./cmd/mail.go
+	go run ./cmd/main.go
