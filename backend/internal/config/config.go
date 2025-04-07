@@ -18,6 +18,7 @@ type Config struct {
 type AppConfig struct {
 	LogLevel        string        `env:"APP_LOG_LEVEL"          yaml:"logLevel"`
 	ShutdownTimeout time.Duration `env:"APP_SHUTDOWN_TIMEOUT"   yaml:"shutdownTimeout"`
+	BackupDir       string        `env:"APP_BACKUP_DIR"         yaml:"backupDir"`
 }
 
 type PostgresConfig struct {

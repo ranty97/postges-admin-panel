@@ -51,8 +51,8 @@ func main() {
 
 	shutdowns = append(shutdowns, shutdown)
 
-	db := repository.NewDB(postgresDB)
-	dbService := service.NewDBService(db)
+	db := repository.NewDB(postgresDB, &cfg.Postgres)
+	dbService := service.NewDBService(db, &cfg.App)
 	handler := rest.NewHandler(dbService, l)
 
 	appServer, shutdown := rest.NewServer(l, &cfg.AppServer, handler)

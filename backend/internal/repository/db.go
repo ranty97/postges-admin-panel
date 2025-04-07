@@ -3,19 +3,27 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	cfg "l6/internal/config"
+	"l6/internal/domain"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
 
 type DB struct {
-	db *sqlx.DB
+	db  *sqlx.DB
+	cfg *cfg.PostgresConfig
 }
 
-func NewDB(db *sqlx.DB) *DB {
-	return &DB{db: db}
+func NewDB(db *sqlx.DB, cfg *cfg.PostgresConfig) *DB {
+	return &DB{db: db, cfg: cfg}
 }
 
 func (d *DB) Tables(ctx context.Context) ([]string, error) {
@@ -42,7 +50,6 @@ func (d *DB) ExecuteQuery(ctx context.Context, query string) (string, error) {
 		}
 		defer rows.Close()
 
-		// Получаем типы колонок
 		columnTypes, err := rows.ColumnTypes()
 		if err != nil {
 			return "", fmt.Errorf("postgres: get column types: %w", err)
@@ -56,11 +63,8 @@ func (d *DB) ExecuteQuery(ctx context.Context, query string) (string, error) {
 				return "", fmt.Errorf("postgres: %w", err)
 			}
 
-			// Обработка значений перед добавлением в результат
 			for key, value := range row {
-				// Если значение - байтовый массив, преобразуем его в число или строку
 				if byteArray, ok := value.([]byte); ok {
-					// Определяем тип колонки
 					dataType := ""
 					for _, col := range columnTypes {
 						if col.Name() == key {
@@ -69,19 +73,15 @@ func (d *DB) ExecuteQuery(ctx context.Context, query string) (string, error) {
 						}
 					}
 
-					// В зависимости от типа данных в PostgreSQL выполняем разное преобразование
 					switch dataType {
 					case "NUMERIC", "DECIMAL", "FLOAT", "REAL", "DOUBLE PRECISION":
-						// Преобразуем в число
 						floatVal, err := strconv.ParseFloat(string(byteArray), 64)
 						if err == nil {
 							row[key] = floatVal
 						} else {
-							// Если не удалось преобразовать в число, оставляем как строку
 							row[key] = string(byteArray)
 						}
 					case "INTEGER", "BIGINT", "SMALLINT":
-						// Преобразуем в целое число
 						intVal, err := strconv.ParseInt(string(byteArray), 10, 64)
 						if err == nil {
 							row[key] = intVal
@@ -89,7 +89,6 @@ func (d *DB) ExecuteQuery(ctx context.Context, query string) (string, error) {
 							row[key] = string(byteArray)
 						}
 					default:
-						// Для других типов данных преобразуем в строку
 						row[key] = string(byteArray)
 					}
 				}
@@ -114,4 +113,49 @@ func (d *DB) ExecuteQuery(ctx context.Context, query string) (string, error) {
 		return "", fmt.Errorf("postgres: %w", err)
 	}
 	return fmt.Sprintf("rows affected: %d", rows), nil
+}
+
+// func (d *DB) CreateBackup(ctx context.Context, dir string) (domain.BackupCreated, error) {
+
+// }
+
+func (d *DB) CreateBackup(ctx context.Context, dir string) (domain.BackupCreated, error) {
+	if dir == "" {
+		dir = os.Getenv("BACKUP_DIR")
+		if dir == "" {
+			return domain.BackupCreated{}, errors.New("backup directory not provided and BACKUP_DIR is not set")
+		}
+	}
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return domain.BackupCreated{}, fmt.Errorf("failed to create backup directory: %w", err)
+	}
+
+	timestamp := time.Now().Format("2006-01-02_15-04-05")
+	filename := fmt.Sprintf("%s_backup_%s.sql", d.cfg.Database, timestamp)
+	filePath := filepath.Join(dir, filename)
+
+	cmd := exec.CommandContext(
+		ctx,
+		"pg_dump",
+		"-h", d.cfg.Host,
+		"-p", d.cfg.Port,
+		"-U", d.cfg.Username,
+		"-f", filePath,
+		d.cfg.Database,
+	)
+
+	if d.cfg.Password != "" {
+		cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", d.cfg.Password))
+	}
+
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return domain.BackupCreated{}, fmt.Errorf("pg_dump failed: %w, output: %s", err, string(output))
+	}
+
+	return domain.BackupCreated{
+		Filename: filename,
+		Message:  "Backup created successfully",
+		Success:  true,
+	}, nil
 }

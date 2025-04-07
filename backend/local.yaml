@@ -1,7 +1,7 @@
 postgres:
   host: "localhost"
   port: 5432
-  database: "postgres"
+  database: "temp"
   username: "postgres"
   password: "123"
   connectionAttempts: 5
@@ -17,3 +17,4 @@ appServer:
 app:
   logLevel: "debug"
   shutdownTimeout: "10s"
+  backupDir: "./backup"

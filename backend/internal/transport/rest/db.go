@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"l6/internal/domain"
 	"log/slog"
 	"net/http"
 
@@ -17,6 +18,8 @@ import (
 type Service interface {
 	Tables(ctx context.Context) ([]string, error)
 	ExecuteQuery(ctx context.Context, query string) (string, error)
+	ListBackups(ctx context.Context) ([]domain.Backup, error)
+	CreateBackup(ctx context.Context) (domain.BackupCreated, error)
 }
 
 type Handler struct {
@@ -31,6 +34,8 @@ func NewHandler(service Service, logger *slog.Logger) *Handler {
 func (h *Handler) InitRoutes(router *gin.Engine) {
 	router.GET("/tables", h.Tables)
 	router.POST("/execute", h.Execute)
+	router.GET("/backup/list", h.ListBackups)
+	router.POST("/backup/create", h.CreateBackup)
 }
 
 // TableResponse represents the response for the tables endpoint
@@ -92,4 +97,28 @@ func (h *Handler) Execute(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"result": result})
 	h.logger.Info("Query executed successfully", "result", result)
+}
+
+func (h *Handler) ListBackups(c *gin.Context) {
+	h.logger.Info("ListBackups request received")
+	backups, err := h.service.ListBackups(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		h.logger.Error("Failed to list backups", "error", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"backups": backups})
+	h.logger.Info("Backups listed successfully", "backups", backups)
+}
+
+func (h *Handler) CreateBackup(c *gin.Context) {
+	h.logger.Info("CreateBackup request received")
+	backup, err := h.service.CreateBackup(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		h.logger.Error("Failed to create backup", "error", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"backup": backup})
+	h.logger.Info("Backup created successfully")
 }
