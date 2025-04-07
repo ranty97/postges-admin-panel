@@ -1,5 +1,10 @@
 <template>
   <div class="queries-container">
+    <div class="banner">
+      <h1>Управление запросами</h1>
+      <p>Создавайте, выполняйте и сохраняйте SQL-запросы</p>
+    </div>
+
     <div class="queries-header">
       <h2>Управление запросами</h2>
       <el-button type="primary" @click="dialogVisible = true">
@@ -233,6 +238,26 @@ const exportToExcel = () => {
   }
 }
 
+const isDateField = (value) => {
+  if (!value) return false
+  // Проверяем, является ли значение датой
+  const date = new Date(value)
+  return !isNaN(date.getTime())
+}
+
+const formatDate = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  return date.toLocaleString('ru-RU', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
 onMounted(() => {
   console.log('QueriesView mounted')
   fetchQueries()
@@ -267,5 +292,26 @@ onBeforeRouteUpdate((to, from, next) => {
   margin-bottom: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+.banner {
+  background: linear-gradient(135deg, #409EFF 0%, #36cfc9 100%);
+  color: white;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.banner h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.banner p {
+  margin: 0.5rem 0 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
 }
 </style> 

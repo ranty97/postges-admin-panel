@@ -23,6 +23,10 @@
             <el-icon><Document /></el-icon>
             <span>Запросы</span>
           </el-menu-item>
+          <el-menu-item index="/backup">
+            <el-icon><Upload /></el-icon>
+            <span>Бэкапы</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
       <el-main class="app-main">
@@ -33,7 +37,7 @@
 </template>
 
 <script setup>
-import { DataLine, List, Document } from '@element-plus/icons-vue'
+import { DataLine, List, Document, Upload } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { computed } from 'vue'
 
