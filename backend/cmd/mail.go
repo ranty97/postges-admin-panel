@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"l6/backend/internal/config"
+	"l6/backend/internal/repository"
+	"l6/backend/internal/service"
+	"l6/backend/internal/transport/rest"
 	"l6/backend/pkg/logger"
 	"l6/backend/pkg/pgclient"
 	"log/slog"
@@ -47,9 +49,22 @@ func main() {
 		return
 	}
 
-	fmt.Println(postgresDB)
+	db := repository.NewDB(postgresDB)
+	dbService := service.NewDBService(db)
+	handler := rest.NewHandler(dbService, l)
+
+	appServer, shutdown := rest.NewServer(l, &cfg.AppServer, handler)
 
 	shutdowns = append(shutdowns, shutdown)
+
+	go func() {
+		l.Info("Starting app server")
+		err = appServer.StartHTTP(l)
+		if err != nil {
+			l.Error("error running app server", logger.ErrAttr(err))
+			cancel()
+		}
+	}()
 
 	<-notifyCtx.Done()
 
