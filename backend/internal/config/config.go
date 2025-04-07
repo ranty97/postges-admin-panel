@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"l6/backend/pkg/logger"
+	"l6/pkg/logger"
 	"log/slog"
 	"time"
 

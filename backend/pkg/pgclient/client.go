@@ -3,8 +3,8 @@ package pgclient
 import (
 	"context"
 	"fmt"
-	"l6/backend/internal/config"
-	"l6/backend/pkg/logger"
+	"l6/internal/config"
+	"l6/pkg/logger"
 	"log/slog"
 	"time"
 

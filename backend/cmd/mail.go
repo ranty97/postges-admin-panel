@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"l6/backend/internal/config"
-	"l6/backend/internal/repository"
-	"l6/backend/internal/service"
-	"l6/backend/internal/transport/rest"
-	"l6/backend/pkg/logger"
-	"l6/backend/pkg/pgclient"
+	"l6/internal/config"
+	"l6/internal/repository"
+	"l6/internal/service"
+	"l6/internal/transport/rest"
+	"l6/pkg/logger"
+	"l6/pkg/pgclient"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -48,6 +48,8 @@ func main() {
 
 		return
 	}
+
+	shutdowns = append(shutdowns, shutdown)
 
 	db := repository.NewDB(postgresDB)
 	dbService := service.NewDBService(db)

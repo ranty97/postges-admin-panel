@@ -6,8 +6,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // @title Database API
@@ -33,7 +31,6 @@ func NewHandler(service Service, logger *slog.Logger) *Handler {
 func (h *Handler) InitRoutes(router *gin.Engine) {
 	router.GET("/tables", h.Tables)
 	router.POST("/execute", h.Execute)
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 }
 
 // TableResponse represents the response for the tables endpoint

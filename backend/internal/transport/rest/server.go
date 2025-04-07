@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"l6/backend/internal/config"
-	"l6/backend/pkg/logger"
+	"l6/internal/config"
+	"l6/pkg/logger"
 	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 type Server struct {
@@ -33,6 +35,8 @@ func NewServer( //nolint:gocritic // no named params
 	router := gin.New()
 
 	router.Use(requestLoggerMiddleware(l))
+
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	s.handler.InitRoutes(router)
 
