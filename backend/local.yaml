@@ -1,0 +1,19 @@
+postgres:
+  host: "localhost"
+  port: 5432
+  database: "postgres"
+  username: "postgres"
+  password: "123"
+  connectionAttempts: 5
+  delayBtwAttempts: "10s"
+  queryTimeout: "5s"
+
+appServer:
+  host: "localhost"
+  port: 8080
+  readTimeout: "10s"
+  writeTimeout: "10s"
+
+app:
+  logLevel: "debug"
+  shutdownTimeout: "10s"
