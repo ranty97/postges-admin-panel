@@ -1,0 +1,78 @@
+basePath: /
+definitions:
+  rest.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  rest.ExecuteRequest:
+    properties:
+      query:
+        type: string
+    type: object
+  rest.TableResponse:
+    properties:
+      tables:
+        items:
+          type: string
+        type: array
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API для работы с базой данных
+  title: Database API
+  version: "1.0"
+paths:
+  /execute:
+    post:
+      consumes:
+      - application/json
+      description: Executes an arbitrary SQL query and returns the result
+      parameters:
+      - description: SQL query
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.ExecuteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.ErrorResponse'
+      summary: Execute SQL query
+      tags:
+      - execute
+  /tables:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of all tables in the database
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.TableResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.ErrorResponse'
+      summary: Get list of tables
+      tags:
+      - tables
+swagger: "2.0"
