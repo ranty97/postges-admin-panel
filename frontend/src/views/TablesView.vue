@@ -125,14 +125,18 @@
               type="date"
               placeholder="Выберите дату"
               style="width: 100%"
-              format="YYYY-MM-DD"
+              format="DD.MM.YYYY"
               value-format="YYYY-MM-DD"
               :clearable="true"
               :editable="false"
-              @change="(val) => console.log('Date changed:', val, 'Column:', column, 'Type:', columnTypes[column])"
             />
             <span v-else @dblclick="startEditing(scope.row, column)">
-              {{ columnTypes[column] === 'boolean' ? (scope.row[column] ? 'Да' : 'Нет') : scope.row[column] }}
+              {{ columnTypes[column] === 'boolean' 
+                ? (scope.row[column] ? 'Да' : 'Нет') 
+                : columnTypes[column] === 'date' 
+                  ? (scope.row[column] ? new Date(scope.row[column]).toLocaleDateString('ru-RU') : '')
+                  : scope.row[column] 
+              }}
             </span>
           </template>
         </el-table-column>

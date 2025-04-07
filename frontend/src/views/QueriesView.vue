@@ -1,31 +1,39 @@
 <template>
-  <div>
-    <div class="banner">
-      <h1>Управление запросами</h1>
-      <p>Создавайте, сохраняйте и выполняйте SQL-запросы</p>
+  <div class="queries-container">
+    <div class="queries-header">
+      <h2>Управление запросами</h2>
+      <el-button type="primary" @click="dialogVisible = true">
+        <el-icon><Plus /></el-icon>
+        Создать запрос
+      </el-button>
     </div>
 
-    <el-row :gutter="20" class="mb-4">
-      <el-col :span="24">
-        <el-button type="primary" @click="showNewQueryDialog = true">
-          Создать запрос
-        </el-button>
-      </el-col>
-    </el-row>
-
-    <el-table v-loading="loading" :data="queries" style="width: 100%">
-      <el-table-column prop="name" label="Название запроса" />
-      <el-table-column prop="query" label="SQL-запрос" show-overflow-tooltip />
-      <el-table-column fixed="right" label="Действия" width="300">
-        <template #default="scope">
+    <el-table :data="queries" v-loading="loading" style="width: 100%">
+      <el-table-column prop="name" label="Название" />
+      <el-table-column prop="query" label="Запрос" />
+      <el-table-column prop="created_at" label="Создан">
+        <template #default="{ row }">
+          {{ new Date(row.created_at).toLocaleString('ru-RU') }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="updated_at" label="Обновлен">
+        <template #default="{ row }">
+          {{ new Date(row.updated_at).toLocaleString('ru-RU') }}
+        </template>
+      </el-table-column>
+      <el-table-column label="Действия" width="250">
+        <template #default="{ row }">
           <el-button-group>
-            <el-button type="primary" @click="executeQuery(scope.row)">
+            <el-button type="primary" @click="handleExecute(row.query)">
+              <el-icon><VideoPlay /></el-icon>
               Выполнить
             </el-button>
-            <el-button type="warning" @click="editQuery(scope.row)">
+            <el-button type="warning" @click="startEdit(row)">
+              <el-icon><Edit /></el-icon>
               Редактировать
             </el-button>
-            <el-button type="danger" @click="deleteQuery(scope.row)">
+            <el-button type="danger" @click="handleDelete(row.id)">
+              <el-icon><Delete /></el-icon>
               Удалить
             </el-button>
           </el-button-group>
@@ -33,47 +41,52 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog
-      v-model="showNewQueryDialog"
-      :title="editingQuery ? 'Редактирование запроса' : 'Создание нового запроса'"
-      width="60%"
-      :close-on-click-modal="false"
-    >
-      <el-form :model="currentQuery" label-position="top">
-        <el-form-item label="Название запроса" required>
-          <el-input v-model="currentQuery.name" placeholder="Введите название запроса" />
+    <!-- Диалог создания нового запроса -->
+    <el-dialog v-model="dialogVisible" title="Создание нового запроса" width="50%">
+      <el-form>
+        <el-form-item label="Название">
+          <el-input v-model="newQueryName" />
         </el-form-item>
-        <el-form-item label="SQL-запрос" required>
-          <el-input
-            v-model="currentQuery.query"
-            type="textarea"
-            :rows="6"
-            placeholder="Введите SQL-запрос"
-          />
+        <el-form-item label="Запрос">
+          <el-input v-model="newQueryText" type="textarea" rows="5" />
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="cancelQuery">Отмена</el-button>
-          <el-button type="primary" @click="saveQuery">
-            {{ editingQuery ? 'Сохранить' : 'Создать' }}
-          </el-button>
+          <el-button @click="dialogVisible = false">Отмена</el-button>
+          <el-button type="primary" @click="handleCreate">Создать</el-button>
         </span>
       </template>
     </el-dialog>
 
-    <el-dialog
-      v-model="showResultsDialog"
-      title="Результаты запроса"
-      width="80%"
-    >
+    <!-- Диалог редактирования запроса -->
+    <el-dialog v-model="editDialogVisible" title="Редактирование запроса" width="50%">
+      <el-form>
+        <el-form-item label="Название">
+          <el-input v-model="editingQuery.name" />
+        </el-form-item>
+        <el-form-item label="Запрос">
+          <el-input v-model="editingQuery.query" type="textarea" rows="5" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="editDialogVisible = false">Отмена</el-button>
+          <el-button type="primary" @click="handleEdit">Сохранить</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- Диалог результатов -->
+    <el-dialog v-model="showResultsDialog" title="Результаты запроса" width="80%">
+      <div class="results-actions">
+        <el-button type="success" @click="exportToExcel">
+          <el-icon><Download /></el-icon>
+          Экспорт в Excel
+        </el-button>
+      </div>
       <el-table :data="queryResults" style="width: 100%">
-        <el-table-column
-          v-for="column in resultColumns"
-          :key="column"
-          :prop="column"
-          :label="column"
-        />
+        <el-table-column v-for="col in resultColumns" :key="col" :prop="col" :label="col" />
       </el-table>
     </el-dialog>
   </div>
@@ -81,109 +94,142 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { queriesApi } from '../routes/queries'
+import { ElMessage } from 'element-plus'
+import { queriesApi } from '../api/queries'
 import { onBeforeRouteUpdate } from 'vue-router'
+import { Plus, VideoPlay, Edit, Delete, Download } from '@element-plus/icons-vue'
+import * as XLSX from 'xlsx'
 
 const queries = ref([])
 const loading = ref(false)
-const showNewQueryDialog = ref(false)
+const dialogVisible = ref(false)
+const editDialogVisible = ref(false)
 const showResultsDialog = ref(false)
+const newQueryName = ref('')
+const newQueryText = ref('')
 const editingQuery = ref(null)
-const currentQuery = ref({
-  name: '',
-  query: ''
-})
 const queryResults = ref([])
 const resultColumns = ref([])
 
+const startEdit = (query) => {
+  editingQuery.value = { ...query }
+  editDialogVisible.value = true
+}
+
 const fetchQueries = async () => {
-  loading.value = true
   try {
-    queries.value = await queriesApi.getQueries()
+    loading.value = true
+    const response = await queriesApi.getQueries()
+    queries.value = response
   } catch (error) {
-    console.error('Error fetching queries:', error)
-    ElMessage.error('Ошибка при получении списка запросов: ' + (error.response?.data?.message || error.message))
+    console.error('Ошибка при загрузке запросов:', error)
+    ElMessage.error('Не удалось загрузить запросы')
   } finally {
     loading.value = false
   }
 }
 
-const saveQuery = async () => {
-  if (!currentQuery.value.name || !currentQuery.value.query) {
-    ElMessage.warning('Заполните все поля')
-    return
-  }
-
+const handleCreate = async () => {
   try {
-    if (editingQuery.value) {
-      await queriesApi.updateQuery(editingQuery.value.id, currentQuery.value)
-      ElMessage.success('Запрос успешно обновлен')
-    } else {
-      await queriesApi.createQuery(currentQuery.value)
-      ElMessage.success('Запрос успешно создан')
-    }
-    showNewQueryDialog.value = false
-    fetchQueries()
+    const newQuery = await queriesApi.createQuery({
+      name: newQueryName.value,
+      query: newQueryText.value
+    })
+    queries.value.push(newQuery)
+    ElMessage.success('Запрос успешно создан')
+    dialogVisible.value = false
+    newQueryName.value = ''
+    newQueryText.value = ''
   } catch (error) {
-    console.error('Error saving query:', error)
-    ElMessage.error('Ошибка при сохранении запроса: ' + (error.response?.data?.message || error.message))
+    console.error('Ошибка при создании запроса:', error)
+    ElMessage.error('Не удалось создать запрос')
   }
 }
 
-const deleteQuery = async (query) => {
+const handleEdit = async () => {
   try {
-    await ElMessageBox.confirm(
-      `Вы уверены, что хотите удалить запрос "${query.name}"?`,
-      'Предупреждение',
-      {
-        confirmButtonText: 'Да',
-        cancelButtonText: 'Нет',
-        type: 'warning',
-      }
-    )
-    await queriesApi.deleteQuery(query.id)
+    const updatedQuery = await queriesApi.updateQuery(editingQuery.value.id, {
+      name: editingQuery.value.name,
+      query: editingQuery.value.query
+    })
+    const index = queries.value.findIndex(q => q.id === updatedQuery.id)
+    if (index !== -1) {
+      queries.value[index] = updatedQuery
+    }
+    ElMessage.success('Запрос успешно обновлен')
+    editDialogVisible.value = false
+  } catch (error) {
+    console.error('Ошибка при обновлении запроса:', error)
+    ElMessage.error('Не удалось обновить запрос')
+  }
+}
+
+const handleDelete = async (id) => {
+  try {
+    await queriesApi.deleteQuery(id)
+    queries.value = queries.value.filter(q => q.id !== id)
     ElMessage.success('Запрос успешно удален')
-    fetchQueries()
   } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Error deleting query:', error)
-      ElMessage.error('Ошибка при удалении запроса: ' + (error.response?.data?.message || error.message))
-    }
+    console.error('Ошибка при удалении запроса:', error)
+    ElMessage.error('Не удалось удалить запрос')
   }
 }
 
-const executeQuery = async (query) => {
+const handleExecute = async (query) => {
   try {
-    const response = await queriesApi.executeQuery(query.query)
-    if (response.result) {
-      const data = JSON.parse(response.result)
-      if (Array.isArray(data) && data.length > 0) {
-        resultColumns.value = Object.keys(data[0])
-        queryResults.value = data
-        showResultsDialog.value = true
-      } else {
-        ElMessage.success('Запрос выполнен успешно')
+    loading.value = true
+    console.log('Выполнение запроса:', query)
+    const result = await queriesApi.executeQuery(query)
+    console.log('Результат запроса:', result)
+    
+    if (result && result.result) {
+      try {
+        const parsedResult = JSON.parse(result.result)
+        console.log('Распарсенный результат:', parsedResult)
+        
+        if (Array.isArray(parsedResult) && parsedResult.length > 0) {
+          resultColumns.value = Object.keys(parsedResult[0])
+          queryResults.value = parsedResult
+          showResultsDialog.value = true
+        } else {
+          ElMessage.success('Запрос выполнен успешно, но не вернул результатов')
+        }
+      } catch (parseError) {
+        console.error('Ошибка при парсинге результата:', parseError)
+        ElMessage.error('Ошибка при обработке результатов запроса')
       }
+    } else {
+      ElMessage.success('Запрос выполнен успешно, но не вернул результатов')
     }
   } catch (error) {
-    console.error('Error executing query:', error)
-    ElMessage.error('Ошибка при выполнении запроса: ' + (error.response?.data?.message || error.message))
+    console.error('Ошибка при выполнении запроса:', error)
+    ElMessage.error('Не удалось выполнить запрос: ' + (error.response?.data?.message || error.message))
+  } finally {
+    loading.value = false
   }
 }
 
-const editQuery = (query) => {
-  editingQuery.value = query
-  currentQuery.value = { ...query }
-  showNewQueryDialog.value = true
-}
-
-const cancelQuery = () => {
-  showNewQueryDialog.value = false
-  editingQuery.value = null
-  currentQuery.value = {
-    name: '',
-    query: ''
+const exportToExcel = () => {
+  try {
+    // Создаем новую книгу Excel
+    const wb = XLSX.utils.book_new()
+    
+    // Преобразуем данные в формат, подходящий для Excel
+    const ws = XLSX.utils.json_to_sheet(queryResults.value)
+    
+    // Добавляем лист в книгу
+    XLSX.utils.book_append_sheet(wb, ws, "Результаты запроса")
+    
+    // Генерируем имя файла с текущей датой и временем
+    const fileName = `query_results_${new Date().toISOString().replace(/[:.]/g, '-')}.xlsx`
+    
+    // Сохраняем файл
+    XLSX.writeFile(wb, fileName)
+    
+    ElMessage.success('Результаты успешно экспортированы в Excel')
+  } catch (error) {
+    console.error('Ошибка при экспорте в Excel:', error)
+    ElMessage.error('Не удалось экспортировать результаты в Excel')
   }
 }
 
@@ -200,24 +246,26 @@ onBeforeRouteUpdate((to, from, next) => {
 </script>
 
 <style scoped>
-.banner {
-  background: linear-gradient(135deg, #409EFF 0%, #36cfc9 100%);
-  color: white;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.queries-container {
+  padding: 20px;
 }
 
-.banner h1 {
-  margin: 0;
-  font-size: 2rem;
-  font-weight: 600;
+.queries-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
 }
 
-.banner p {
-  margin: 0.5rem 0 0;
-  font-size: 1.1rem;
-  opacity: 0.9;
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.results-actions {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style> 
