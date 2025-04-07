@@ -13,13 +13,18 @@
 
     <el-row :gutter="20" class="mb-4">
       <el-col :span="24">
-        <el-button type="primary" @click="executeQuery">
+        <el-button type="primary" @click="executeQuery" :loading="loading">
           Выполнить запрос
         </el-button>
       </el-col>
     </el-row>
 
-    <el-table v-if="queryResult.length > 0" :data="queryResult" style="width: 100%">
+    <el-table 
+      v-if="queryResult.length > 0" 
+      :data="queryResult" 
+      style="width: 100%"
+      v-loading="loading"
+    >
       <el-table-column
         v-for="column in Object.keys(queryResult[0])"
         :key="column"
@@ -42,21 +47,39 @@ import { ElMessage } from 'element-plus'
 const query = ref('')
 const queryResult = ref([])
 const error = ref('')
+const loading = ref(false)
 
 const executeQuery = async () => {
+  if (!query.value.trim()) {
+    ElMessage.warning('Введите SQL запрос')
+    return
+  }
+
+  loading.value = true
+  error.value = ''
+  queryResult.value = []
+
   try {
+    console.log('Executing query:', query.value)
     const response = await axios.post('/api/execute', { query: query.value })
-    if (Array.isArray(response.data)) {
-      queryResult.value = response.data
-      error.value = ''
+    console.log('Query response:', response.data)
+    
+    if (response.data.result) {
+      const data = JSON.parse(response.data.result)
+      if (Array.isArray(data)) {
+        queryResult.value = data
+      } else {
+        ElMessage.success('Запрос выполнен успешно')
+      }
     } else {
       ElMessage.success('Запрос выполнен успешно')
-      queryResult.value = []
-      error.value = ''
     }
   } catch (err) {
+    console.error('Error executing query:', err)
     error.value = err.response?.data?.message || 'Произошла ошибка при выполнении запроса'
-    queryResult.value = []
+    ElMessage.error(error.value)
+  } finally {
+    loading.value = false
   }
 }
 </script>
@@ -65,5 +88,8 @@ const executeQuery = async () => {
 .error-message {
   color: red;
   margin-top: 10px;
+  padding: 10px;
+  background-color: #fef0f0;
+  border-radius: 4px;
 }
 </style> 

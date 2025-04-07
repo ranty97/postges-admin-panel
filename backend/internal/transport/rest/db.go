@@ -83,6 +83,7 @@ func (h *Handler) Execute(c *gin.Context) {
 		h.logger.Error("Failed to bind request", "error", err)
 		return
 	}
+	h.logger.Info("Executing query", "query", request.Query)
 	result, err := h.service.ExecuteQuery(c, request.Query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
