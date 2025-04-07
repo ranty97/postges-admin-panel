@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	_ "l6/docs" // swagger docs
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	swaggerFiles "github.com/swaggo/files"

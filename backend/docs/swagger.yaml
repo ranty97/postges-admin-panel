@@ -1,16 +1,16 @@
 basePath: /
 definitions:
-  rest.ErrorResponse:
+  internal_transport_rest.ErrorResponse:
     properties:
       error:
         type: string
     type: object
-  rest.ExecuteRequest:
+  internal_transport_rest.ExecuteRequest:
     properties:
       query:
         type: string
     type: object
-  rest.TableResponse:
+  internal_transport_rest.TableResponse:
     properties:
       tables:
         items:
@@ -35,7 +35,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.ExecuteRequest'
+          $ref: '#/definitions/internal_transport_rest.ExecuteRequest'
       produces:
       - application/json
       responses:
@@ -48,11 +48,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.ErrorResponse'
+            $ref: '#/definitions/internal_transport_rest.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.ErrorResponse'
+            $ref: '#/definitions/internal_transport_rest.ErrorResponse'
       summary: Execute SQL query
       tags:
       - execute
@@ -67,11 +67,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.TableResponse'
+            $ref: '#/definitions/internal_transport_rest.TableResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.ErrorResponse'
+            $ref: '#/definitions/internal_transport_rest.ErrorResponse'
       summary: Get list of tables
       tags:
       - tables

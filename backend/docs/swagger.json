@@ -29,7 +29,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.ExecuteRequest"
+                            "$ref": "#/definitions/internal_transport_rest.ExecuteRequest"
                         }
                     }
                 ],
@@ -46,13 +46,13 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.ErrorResponse"
+                            "$ref": "#/definitions/internal_transport_rest.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.ErrorResponse"
+                            "$ref": "#/definitions/internal_transport_rest.ErrorResponse"
                         }
                     }
                 }
@@ -75,13 +75,13 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.TableResponse"
+                            "$ref": "#/definitions/internal_transport_rest.TableResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.ErrorResponse"
+                            "$ref": "#/definitions/internal_transport_rest.ErrorResponse"
                         }
                     }
                 }
@@ -89,7 +89,7 @@
         }
     },
     "definitions": {
-        "rest.ErrorResponse": {
+        "internal_transport_rest.ErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
@@ -97,7 +97,7 @@
                 }
             }
         },
-        "rest.ExecuteRequest": {
+        "internal_transport_rest.ExecuteRequest": {
             "type": "object",
             "properties": {
                 "query": {
@@ -105,7 +105,7 @@
                 }
             }
         },
-        "rest.TableResponse": {
+        "internal_transport_rest.TableResponse": {
             "type": "object",
             "properties": {
                 "tables": {
