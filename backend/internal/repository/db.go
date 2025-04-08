@@ -7,6 +7,7 @@ import (
 	"fmt"
 	cfg "l6/internal/config"
 	"l6/internal/domain"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -158,4 +159,41 @@ func (d *DB) CreateBackup(ctx context.Context, dir string) (domain.BackupCreated
 		Message:  "Backup created successfully",
 		Success:  true,
 	}, nil
+}
+
+func (d *DB) RestoreBackup(ctx context.Context, filename string, dir string) error {
+	if filename == "" {
+		return errors.New("filename is required")
+	}
+
+	cleanFilename := filepath.Base(filename)
+	fullPath := filepath.Join(dir, cleanFilename)
+
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		return fmt.Errorf("backup file does not exist: %w", err)
+	}
+
+	cmd := exec.CommandContext(
+		ctx,
+		"psql",
+		"-h", d.cfg.Host,
+		"-p", d.cfg.Port,
+		"-U", d.cfg.Username,
+		"-d", d.cfg.Database,
+		"-f", fullPath,
+	)
+
+	if d.cfg.Password != "" {
+		cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", d.cfg.Password))
+	}
+
+	cmdString := fmt.Sprintf("psql -h %s -p %s -U %s -d %s -f %s", d.cfg.Host, d.cfg.Port, d.cfg.Username, d.cfg.Database, fullPath)
+	log.Printf("Executing command: %s", cmdString)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("pg_restore failed: %w, output: %s", err, string(output))
+	}
+
+	return nil
 }

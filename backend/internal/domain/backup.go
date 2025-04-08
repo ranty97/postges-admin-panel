@@ -18,3 +18,8 @@ type BackupDeleted struct {
 	Message string `json:"message"`
 	Success bool   `json:"success"`
 }
+
+type BackupRestored struct {
+	Message string `json:"message"`
+	Success bool   `json:"success"`
+}

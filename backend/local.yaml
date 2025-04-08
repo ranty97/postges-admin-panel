@@ -17,4 +17,4 @@ appServer:
 app:
   logLevel: "debug"
   shutdownTimeout: "10s"
-  backupDir: "./backup"
+  backupDir: "/Users/ivannikolayeu/bsuir/db/lab6/backend/backup"

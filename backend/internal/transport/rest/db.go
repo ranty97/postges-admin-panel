@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"fmt"
 	"l6/internal/domain"
 	"log/slog"
 	"net/http"
@@ -20,6 +21,9 @@ type Service interface {
 	ExecuteQuery(ctx context.Context, query string) (string, error)
 	ListBackups(ctx context.Context) ([]domain.Backup, error)
 	CreateBackup(ctx context.Context) (domain.BackupCreated, error)
+	DownloadBackup(ctx context.Context, filename string) ([]byte, error)
+	DeleteBackup(ctx context.Context, filename string) error
+	RestoreBackup(ctx context.Context, filename string) error
 }
 
 type Handler struct {
@@ -36,6 +40,9 @@ func (h *Handler) InitRoutes(router *gin.Engine) {
 	router.POST("/execute", h.Execute)
 	router.GET("/backup/list", h.ListBackups)
 	router.POST("/backup/create", h.CreateBackup)
+	router.GET("/backup/download/:filename", h.DownloadBackup)
+	router.DELETE("/backup/delete/:filename", h.DeleteBackup)
+	router.POST("/backup/restore/:filename", h.RestoreBackup)
 }
 
 // TableResponse represents the response for the tables endpoint
@@ -121,4 +128,46 @@ func (h *Handler) CreateBackup(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"backup": backup})
 	h.logger.Info("Backup created successfully")
+}
+
+func (h *Handler) DownloadBackup(c *gin.Context) {
+	h.logger.Info("DownloadBackup request received")
+	filename := c.Param("filename")
+	backup, err := h.service.DownloadBackup(c, filename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		h.logger.Error("Failed to download backup", "error", err)
+		return
+	}
+	c.Header("Content-Type", "application/sql")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Data(http.StatusOK, "application/sql", backup)
+	h.logger.Info("Backup downloaded successfully", "filename", filename)
+}
+
+func (h *Handler) DeleteBackup(c *gin.Context) {
+	h.logger.Info("DeleteBackup request received")
+	filename := c.Param("filename")
+	err := h.service.DeleteBackup(c, filename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		h.logger.Error("Failed to delete backup", "error", err)
+		return
+	}
+
+	c.JSON(http.StatusOK, domain.BackupDeleted{Success: true, Message: "Backup deleted successfully"})
+	h.logger.Info("Backup deleted successfully", "filename", filename)
+}
+
+func (h *Handler) RestoreBackup(c *gin.Context) {
+	h.logger.Info("RestoreBackup request received")
+	filename := c.Param("filename")
+	err := h.service.RestoreBackup(c, filename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		h.logger.Error("Failed to restore backup", "error", err)
+		return
+	}
+	c.JSON(http.StatusOK, domain.BackupCreated{Success: true, Message: "Backup restored successfully"})
+	h.logger.Info("Backup restored successfully", "filename", filename)
 }
