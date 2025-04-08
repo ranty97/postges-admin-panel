@@ -7,7 +7,6 @@ import (
 	"fmt"
 	cfg "l6/internal/config"
 	"l6/internal/domain"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -116,10 +115,6 @@ func (d *DB) ExecuteQuery(ctx context.Context, query string) (string, error) {
 	return fmt.Sprintf("rows affected: %d", rows), nil
 }
 
-// func (d *DB) CreateBackup(ctx context.Context, dir string) (domain.BackupCreated, error) {
-
-// }
-
 func (d *DB) CreateBackup(ctx context.Context, dir string) (domain.BackupCreated, error) {
 	if dir == "" {
 		dir = os.Getenv("BACKUP_DIR")
@@ -187,13 +182,33 @@ func (d *DB) RestoreBackup(ctx context.Context, filename string, dir string) err
 		cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", d.cfg.Password))
 	}
 
-	cmdString := fmt.Sprintf("psql -h %s -p %s -U %s -d %s -f %s", d.cfg.Host, d.cfg.Port, d.cfg.Username, d.cfg.Database, fullPath)
-	log.Printf("Executing command: %s", cmdString)
-
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("pg_restore failed: %w, output: %s", err, string(output))
 	}
 
+	return nil
+}
+
+func (d *DB) DeleteAllTables(ctx context.Context) error {
+	query := `
+		DO $$ 
+		DECLARE 
+    		r RECORD;
+		BEGIN 
+    		EXECUTE 'SET session_replication_role = replica';
+
+    		FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') 
+    		LOOP
+        		EXECUTE 'DROP TABLE IF EXISTS public.' || r.tablename || ' CASCADE';
+    		END LOOP;
+
+    		EXECUTE 'SET session_replication_role = DEFAULT';
+		END $$;`
+
+	_, err := d.db.ExecContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("failed to delete all tables: %w", err)
+	}
 	return nil
 }

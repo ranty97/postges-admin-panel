@@ -24,6 +24,7 @@ type Service interface {
 	DownloadBackup(ctx context.Context, filename string) ([]byte, error)
 	DeleteBackup(ctx context.Context, filename string) error
 	RestoreBackup(ctx context.Context, filename string) error
+	DeleteAllTables(ctx context.Context) error
 }
 
 type Handler struct {
@@ -43,6 +44,7 @@ func (h *Handler) InitRoutes(router *gin.Engine) {
 	router.GET("/backup/download/:filename", h.DownloadBackup)
 	router.DELETE("/backup/delete/:filename", h.DeleteBackup)
 	router.POST("/backup/restore/:filename", h.RestoreBackup)
+	router.DELETE("/tables/delete/all", h.DeleteAllTables)
 }
 
 // TableResponse represents the response for the tables endpoint
@@ -170,4 +172,16 @@ func (h *Handler) RestoreBackup(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, domain.BackupCreated{Success: true, Message: "Backup restored successfully"})
 	h.logger.Info("Backup restored successfully", "filename", filename)
+}
+
+func (h *Handler) DeleteAllTables(c *gin.Context) {
+	h.logger.Info("DeleteAllTables request received")
+	err := h.service.DeleteAllTables(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		h.logger.Error("Failed to delete all tables", "error", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "All tables deleted successfully"})
+	h.logger.Info("All tables deleted successfully")
 }

@@ -15,6 +15,7 @@ type Repository interface {
 	ExecuteQuery(ctx context.Context, query string) (string, error)
 	CreateBackup(ctx context.Context, dir string) (domain.BackupCreated, error)
 	RestoreBackup(ctx context.Context, filename string, dir string) error
+	DeleteAllTables(ctx context.Context) error
 }
 
 type Service struct {
@@ -108,6 +109,14 @@ func (s *Service) RestoreBackup(ctx context.Context, filename string) error {
 	err := s.repo.RestoreBackup(ctx, filename, s.cfg.BackupDir)
 	if err != nil {
 		return fmt.Errorf("failed to restore backup file: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) DeleteAllTables(ctx context.Context) error {
+	err := s.repo.DeleteAllTables(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to delete all tables: %w", err)
 	}
 	return nil
 }
