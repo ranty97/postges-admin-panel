@@ -15,6 +15,187 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/backup/create": {
+            "post": {
+                "description": "Creates a new backup of the database",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backup"
+                ],
+                "summary": "Create new backup",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/domain.BackupCreated"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/rest.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/backup/delete/{filename}": {
+            "delete": {
+                "description": "Deletes a specific backup file",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backup"
+                ],
+                "summary": "Delete backup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Backup filename",
+                        "name": "filename",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.BackupDeleted"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/rest.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/backup/download/{filename}": {
+            "get": {
+                "description": "Downloads a specific backup file",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/sql"
+                ],
+                "tags": [
+                    "backup"
+                ],
+                "summary": "Download backup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Backup filename",
+                        "name": "filename",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/rest.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/backup/list": {
+            "get": {
+                "description": "Returns a list of all available backups",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backup"
+                ],
+                "summary": "Get list of backups",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/domain.Backup"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/rest.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/backup/restore/{filename}": {
+            "post": {
+                "description": "Restores the database from a specific backup",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backup"
+                ],
+                "summary": "Restore backup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Backup filename",
+                        "name": "filename",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.BackupCreated"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/rest.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/execute": {
             "post": {
                 "description": "Executes an arbitrary SQL query and returns the result",
@@ -35,7 +216,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_transport_rest.ExecuteRequest"
+                            "$ref": "#/definitions/rest.ExecuteRequest"
                         }
                     }
                 ],
@@ -52,13 +233,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_transport_rest.ErrorResponse"
+                            "$ref": "#/definitions/rest.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_transport_rest.ErrorResponse"
+                            "$ref": "#/definitions/rest.ErrorResponse"
                         }
                     }
                 }
@@ -81,13 +262,45 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_transport_rest.TableResponse"
+                            "$ref": "#/definitions/rest.TableResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_transport_rest.ErrorResponse"
+                            "$ref": "#/definitions/rest.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tables/delete/all": {
+            "delete": {
+                "description": "Deletes all tables from the database",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tables"
+                ],
+                "summary": "Delete all tables",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/rest.ErrorResponse"
                         }
                     }
                 }
@@ -95,7 +308,46 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "internal_transport_rest.ErrorResponse": {
+        "domain.Backup": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.BackupCreated": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "domain.BackupDeleted": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "rest.ErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
@@ -103,7 +355,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_transport_rest.ExecuteRequest": {
+        "rest.ExecuteRequest": {
             "type": "object",
             "properties": {
                 "query": {
@@ -111,7 +363,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_transport_rest.TableResponse": {
+        "rest.TableResponse": {
             "type": "object",
             "properties": {
                 "tables": {
@@ -132,7 +384,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Database API",
-	Description:      "API for working with the database",
+	Description:      "API для работы с базой данных",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 }

@@ -1,16 +1,41 @@
 basePath: /
 definitions:
-  internal_transport_rest.ErrorResponse:
+  domain.Backup:
+    properties:
+      created_at:
+        type: string
+      filename:
+        type: string
+      size:
+        type: integer
+    type: object
+  domain.BackupCreated:
+    properties:
+      filename:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  domain.BackupDeleted:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  rest.ErrorResponse:
     properties:
       error:
         type: string
     type: object
-  internal_transport_rest.ExecuteRequest:
+  rest.ExecuteRequest:
     properties:
       query:
         type: string
     type: object
-  internal_transport_rest.TableResponse:
+  rest.TableResponse:
     properties:
       tables:
         items:
@@ -24,6 +49,125 @@ info:
   title: Database API
   version: "1.0"
 paths:
+  /backup/create:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new backup of the database
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/domain.BackupCreated'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.ErrorResponse'
+      summary: Create new backup
+      tags:
+      - backup
+  /backup/delete/{filename}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a specific backup file
+      parameters:
+      - description: Backup filename
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.BackupDeleted'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.ErrorResponse'
+      summary: Delete backup
+      tags:
+      - backup
+  /backup/download/{filename}:
+    get:
+      consumes:
+      - application/json
+      description: Downloads a specific backup file
+      parameters:
+      - description: Backup filename
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - application/sql
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.ErrorResponse'
+      summary: Download backup
+      tags:
+      - backup
+  /backup/list:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of all available backups
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/domain.Backup'
+              type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.ErrorResponse'
+      summary: Get list of backups
+      tags:
+      - backup
+  /backup/restore/{filename}:
+    post:
+      consumes:
+      - application/json
+      description: Restores the database from a specific backup
+      parameters:
+      - description: Backup filename
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.BackupCreated'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.ErrorResponse'
+      summary: Restore backup
+      tags:
+      - backup
   /execute:
     post:
       consumes:
@@ -35,7 +179,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_transport_rest.ExecuteRequest'
+          $ref: '#/definitions/rest.ExecuteRequest'
       produces:
       - application/json
       responses:
@@ -48,11 +192,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_transport_rest.ErrorResponse'
+            $ref: '#/definitions/rest.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_transport_rest.ErrorResponse'
+            $ref: '#/definitions/rest.ErrorResponse'
       summary: Execute SQL query
       tags:
       - execute
@@ -67,12 +211,33 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_transport_rest.TableResponse'
+            $ref: '#/definitions/rest.TableResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_transport_rest.ErrorResponse'
+            $ref: '#/definitions/rest.ErrorResponse'
       summary: Get list of tables
+      tags:
+      - tables
+  /tables/delete/all:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes all tables from the database
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.ErrorResponse'
+      summary: Delete all tables
       tags:
       - tables
 swagger: "2.0"

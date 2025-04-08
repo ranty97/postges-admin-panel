@@ -108,6 +108,14 @@ func (h *Handler) Execute(c *gin.Context) {
 	h.logger.Info("Query executed successfully", "result", result)
 }
 
+// @Summary Get list of backups
+// @Description Returns a list of all available backups
+// @Tags backup
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string][]domain.Backup
+// @Failure 500 {object} ErrorResponse
+// @Router /backup/list [get]
 func (h *Handler) ListBackups(c *gin.Context) {
 	h.logger.Info("ListBackups request received")
 	backups, err := h.service.ListBackups(c)
@@ -120,6 +128,14 @@ func (h *Handler) ListBackups(c *gin.Context) {
 	h.logger.Info("Backups listed successfully", "backups", backups)
 }
 
+// @Summary Create new backup
+// @Description Creates a new backup of the database
+// @Tags backup
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]domain.BackupCreated
+// @Failure 500 {object} ErrorResponse
+// @Router /backup/create [post]
 func (h *Handler) CreateBackup(c *gin.Context) {
 	h.logger.Info("CreateBackup request received")
 	backup, err := h.service.CreateBackup(c)
@@ -132,6 +148,15 @@ func (h *Handler) CreateBackup(c *gin.Context) {
 	h.logger.Info("Backup created successfully")
 }
 
+// @Summary Download backup
+// @Description Downloads a specific backup file
+// @Tags backup
+// @Accept json
+// @Produce application/sql
+// @Param filename path string true "Backup filename"
+// @Success 200 {file} application/sql
+// @Failure 500 {object} ErrorResponse
+// @Router /backup/download/{filename} [get]
 func (h *Handler) DownloadBackup(c *gin.Context) {
 	h.logger.Info("DownloadBackup request received")
 	filename := c.Param("filename")
@@ -147,6 +172,15 @@ func (h *Handler) DownloadBackup(c *gin.Context) {
 	h.logger.Info("Backup downloaded successfully", "filename", filename)
 }
 
+// @Summary Delete backup
+// @Description Deletes a specific backup file
+// @Tags backup
+// @Accept json
+// @Produce json
+// @Param filename path string true "Backup filename"
+// @Success 200 {object} domain.BackupDeleted
+// @Failure 500 {object} ErrorResponse
+// @Router /backup/delete/{filename} [delete]
 func (h *Handler) DeleteBackup(c *gin.Context) {
 	h.logger.Info("DeleteBackup request received")
 	filename := c.Param("filename")
@@ -161,6 +195,15 @@ func (h *Handler) DeleteBackup(c *gin.Context) {
 	h.logger.Info("Backup deleted successfully", "filename", filename)
 }
 
+// @Summary Restore backup
+// @Description Restores the database from a specific backup
+// @Tags backup
+// @Accept json
+// @Produce json
+// @Param filename path string true "Backup filename"
+// @Success 200 {object} domain.BackupCreated
+// @Failure 500 {object} ErrorResponse
+// @Router /backup/restore/{filename} [post]
 func (h *Handler) RestoreBackup(c *gin.Context) {
 	h.logger.Info("RestoreBackup request received")
 	filename := c.Param("filename")
@@ -174,6 +217,14 @@ func (h *Handler) RestoreBackup(c *gin.Context) {
 	h.logger.Info("Backup restored successfully", "filename", filename)
 }
 
+// @Summary Delete all tables
+// @Description Deletes all tables from the database
+// @Tags tables
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Failure 500 {object} ErrorResponse
+// @Router /tables/delete/all [delete]
 func (h *Handler) DeleteAllTables(c *gin.Context) {
 	h.logger.Info("DeleteAllTables request received")
 	err := h.service.DeleteAllTables(c)
