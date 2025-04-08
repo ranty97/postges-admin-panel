@@ -78,14 +78,7 @@ export const queriesApi = {
 
   // Выполнение запроса
   executeQuery: async (query) => {
-    console.log('Отправка запроса на выполнение:', query)
-    try {
-      const response = await axios.post('/api/execute', { query })
-      console.log('Ответ от сервера:', response.data)
-      return response.data
-    } catch (error) {
-      console.error('Ошибка при выполнении запроса:', error)
-      throw error
-    }
+    const response = await axios.post('/api/execute', { query })
+    return response.data
   }
 } 

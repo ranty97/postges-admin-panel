@@ -6,63 +6,68 @@
     </div>
 
     <div class="backup-actions">
-      <el-button type="primary" @click="handleCreateBackup">
+      <el-button type="primary" @click="handleCreateBackup" :loading="creatingBackup">
         <el-icon><Download /></el-icon>
         Создать бэкап
       </el-button>
-      <el-button type="success" @click="handleRestoreBackup">
-        <el-icon><Upload /></el-icon>
-        Восстановить из бэкапа
-      </el-button>
     </div>
 
-    <el-table :data="backups" v-loading="loading" style="width: 100%">
-      <el-table-column prop="filename" label="Имя файла" />
-      <el-table-column prop="created_at" label="Создан">
-        <template #default="{ row }">
-          {{ new Date(row.created_at).toLocaleString('ru-RU') }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="size" label="Размер">
-        <template #default="{ row }">
-          {{ formatFileSize(row.size) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="Действия" width="200">
-        <template #default="{ row }">
-          <el-button-group>
-            <el-button type="primary" @click="handleDownloadBackup(row.filename)">
-              <el-icon><Download /></el-icon>
-              Скачать
-            </el-button>
-            <el-button type="danger" @click="handleDeleteBackup(row.filename)">
-              <el-icon><Delete /></el-icon>
-              Удалить
-            </el-button>
-          </el-button-group>
-        </template>
-      </el-table-column>
-    </el-table>
+    <el-card class="backup-list">
+      <template #header>
+        <div class="card-header">
+          <span>Список бэкапов</span>
+          <el-button type="text" @click="refreshBackups">
+            <el-icon><Refresh /></el-icon>
+            Обновить
+          </el-button>
+        </div>
+      </template>
 
-    <!-- Диалог восстановления из бэкапа -->
+      <el-table :data="backups" v-loading="loading" style="width: 100%">
+        <el-table-column prop="filename" label="Имя файла" />
+        <el-table-column prop="created_at" label="Создан">
+          <template #default="{ row }">
+            {{ new Date(row.created_at).toLocaleString('ru-RU') }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="size" label="Размер">
+          <template #default="{ row }">
+            {{ formatFileSize(row.size) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="Действия" width="300">
+          <template #default="{ row }">
+            <el-button-group>
+              <el-button type="primary" @click="handleDownloadBackup(row.filename)">
+                <el-icon><Download /></el-icon>
+                Скачать
+              </el-button>
+              <el-button type="success" @click="handleRestoreBackup(row.filename)">
+                <el-icon><Upload /></el-icon>
+                Восстановить
+              </el-button>
+              <el-button type="danger" @click="handleDeleteBackup(row.filename)">
+                <el-icon><Delete /></el-icon>
+                Удалить
+              </el-button>
+            </el-button-group>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <!-- Диалог подтверждения восстановления -->
     <el-dialog v-model="restoreDialogVisible" title="Восстановление из бэкапа" width="30%">
-      <el-form>
-        <el-form-item label="Выберите файл бэкапа">
-          <el-upload
-            class="upload-demo"
-            drag
-            action="/api/backup/restore"
-            :on-success="handleRestoreSuccess"
-            :on-error="handleRestoreError"
-            :before-upload="beforeRestoreUpload"
-          >
-            <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-            <div class="el-upload__text">
-              Перетащите файл бэкапа сюда или <em>нажмите для загрузки</em>
-            </div>
-          </el-upload>
-        </el-form-item>
-      </el-form>
+      <p>Вы уверены, что хотите восстановить базу данных из бэкапа "{{ selectedBackup }}"?</p>
+      <p class="warning-text">Внимание: Это действие перезапишет текущую базу данных!</p>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="restoreDialogVisible = false">Отмена</el-button>
+          <el-button type="success" @click="confirmRestore" :loading="restoring">
+            Восстановить
+          </el-button>
+        </span>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -70,18 +75,28 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Download, Upload, Delete, UploadFilled } from '@element-plus/icons-vue'
+import { Download, Upload, Delete, UploadFilled, Refresh } from '@element-plus/icons-vue'
+
+console.log('BackupView mounted')
 
 const backups = ref([])
 const loading = ref(false)
+const creatingBackup = ref(false)
 const restoreDialogVisible = ref(false)
+const selectedBackup = ref('')
+const restoring = ref(false)
 
 const fetchBackups = async () => {
   try {
     loading.value = true
+    console.log('Загрузка списка бэкапов...')
     const response = await fetch('/api/backup/list')
+    console.log('Ответ сервера:', response)
     if (!response.ok) throw new Error('Ошибка при загрузке списка бэкапов')
-    backups.value = await response.json()
+    const data = await response.json()
+    console.log('Данные бэкапов:', data)
+    backups.value = data.backups || []
+    console.log('Обновленный список бэкапов:', backups.value)
   } catch (error) {
     console.error('Ошибка при загрузке бэкапов:', error)
     ElMessage.error('Не удалось загрузить список бэкапов')
@@ -92,20 +107,22 @@ const fetchBackups = async () => {
 
 const handleCreateBackup = async () => {
   try {
-    loading.value = true
+    creatingBackup.value = true
     const response = await fetch('/api/backup/create', { method: 'POST' })
     if (!response.ok) throw new Error('Ошибка при создании бэкапа')
-    ElMessage.success('Бэкап успешно создан')
+    const data = await response.json()
+    ElMessage.success(data.message || 'Бэкап успешно создан')
     await fetchBackups()
   } catch (error) {
     console.error('Ошибка при создании бэкапа:', error)
     ElMessage.error('Не удалось создать бэкап')
   } finally {
-    loading.value = false
+    creatingBackup.value = false
   }
 }
 
-const handleRestoreBackup = () => {
+const handleRestoreBackup = (filename) => {
+  selectedBackup.value = filename
   restoreDialogVisible.value = true
 }
 
@@ -143,8 +160,8 @@ const handleDeleteBackup = async (filename) => {
     
     const response = await fetch(`/api/backup/delete/${filename}`, { method: 'DELETE' })
     if (!response.ok) throw new Error('Ошибка при удалении бэкапа')
-    
-    ElMessage.success('Бэкап успешно удален')
+    const data = await response.json()
+    ElMessage.success(data.message || 'Бэкап успешно удален')
     await fetchBackups()
   } catch (error) {
     if (error !== 'cancel') {
@@ -154,21 +171,20 @@ const handleDeleteBackup = async (filename) => {
   }
 }
 
-const handleRestoreSuccess = () => {
-  ElMessage.success('База данных успешно восстановлена из бэкапа')
-  restoreDialogVisible.value = false
-}
-
-const handleRestoreError = () => {
-  ElMessage.error('Ошибка при восстановлении базы данных')
-}
-
-const beforeRestoreUpload = (file) => {
-  if (!file.name.endsWith('.sql')) {
-    ElMessage.error('Файл должен иметь расширение .sql')
-    return false
+const confirmRestore = async () => {
+  try {
+    restoring.value = true
+    const response = await fetch(`/api/backup/restore/${selectedBackup.value}`, { method: 'POST' })
+    if (!response.ok) throw new Error('Ошибка при восстановлении бэкапа')
+    const data = await response.json()
+    ElMessage.success(data.message || 'База данных успешно восстановлена из бэкапа')
+    restoreDialogVisible.value = false
+  } catch (error) {
+    console.error('Ошибка при восстановлении бэкапа:', error)
+    ElMessage.error('Не удалось восстановить базу данных')
+  } finally {
+    restoring.value = false
   }
-  return true
 }
 
 const formatFileSize = (bytes) => {
@@ -177,6 +193,10 @@ const formatFileSize = (bytes) => {
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const refreshBackups = () => {
+  fetchBackups()
 }
 
 onMounted(() => {
@@ -216,7 +236,29 @@ onMounted(() => {
   opacity: 0.9;
 }
 
+.backup-list {
+  margin-top: 20px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .upload-demo {
   width: 100%;
+}
+
+.el-upload__tip {
+  margin-top: 8px;
+  color: #909399;
+  font-size: 12px;
+}
+
+.warning-text {
+  color: #e6a23c;
+  margin-top: 10px;
+  font-weight: 500;
 }
 </style> 

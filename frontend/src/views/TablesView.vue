@@ -7,9 +7,16 @@
 
     <el-row :gutter="20" class="mb-4">
       <el-col :span="24">
-        <el-button type="primary" @click="createTableDialogVisible = true">
-          Создать таблицу
-        </el-button>
+        <div class="tables-actions">
+          <el-button type="primary" @click="createTableDialogVisible = true">
+            <el-icon><Plus /></el-icon>
+            Создать таблицу
+          </el-button>
+          <el-button type="danger" @click="handleDeleteAllTables">
+            <el-icon><Delete /></el-icon>
+            Удалить все таблицы
+          </el-button>
+        </div>
       </el-col>
     </el-row>
 
@@ -697,6 +704,32 @@ const exportToExcel = () => {
 
 const currentTable = ref('')
 
+const handleDeleteAllTables = async () => {
+  try {
+    await ElMessageBox.confirm(
+      'Вы уверены, что хотите удалить ВСЕ таблицы? Это действие нельзя отменить!',
+      'Подтверждение удаления',
+      {
+        confirmButtonText: 'Да, удалить все',
+        cancelButtonText: 'Отмена',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+    
+    const response = await fetch('/api/tables/delete/all', { method: 'DELETE' })
+    if (!response.ok) throw new Error('Ошибка при удалении таблиц')
+    
+    ElMessage.success('Все таблицы успешно удалены')
+    await fetchTables() // Обновляем список таблиц
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Ошибка при удалении таблиц:', error)
+      ElMessage.error('Не удалось удалить таблицы')
+    }
+  }
+}
+
 onMounted(() => {
   console.log('TablesView mounted, path:', route.path)
   fetchTables()
@@ -800,6 +833,12 @@ onBeforeRouteUpdate((to, from, next) => {
 }
 
 .table-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tables-actions {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
